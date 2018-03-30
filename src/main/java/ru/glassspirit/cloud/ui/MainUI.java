@@ -1,19 +1,23 @@
-package ru.glassspirit.cloud.frontend.ui;
+package ru.glassspirit.cloud.ui;
 
 import com.vaadin.annotations.Title;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.spring.annotation.SpringUI;
 import com.vaadin.ui.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import ru.glassspirit.cloud.backend.service.AuthentificationService;
-import ru.glassspirit.cloud.frontend.model.SavedFile;
+import org.springframework.beans.factory.annotation.Qualifier;
+import ru.glassspirit.cloud.service.AuthService;
+import ru.glassspirit.cloud.model.SavedFile;
+
+import java.io.OutputStream;
 
 @SpringUI
 @Title("SpiritCloud")
 public class MainUI extends UI {
 
     @Autowired
-    AuthentificationService authentification;
+    @Qualifier("frontAuthService")
+    AuthService authentification;
 
     @Override
     protected void init(VaadinRequest request) {
@@ -28,6 +32,12 @@ public class MainUI extends UI {
 
         Upload uploadFile = new Upload();
         uploadFile.setButtonCaption("Загрузить");
+        uploadFile.setReceiver(new Upload.Receiver() {
+            @Override
+            public OutputStream receiveUpload(String fileName, String mimeType) {
+                return null;
+            }
+        });
         Button btnDelete = new Button("Удалить");
         Button btnDownload = new Button("Скачать");
 
