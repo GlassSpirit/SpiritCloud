@@ -1,8 +1,11 @@
 package ru.glassspirit.cloud.dao;
 
+import org.springframework.stereotype.Service;
+
 import java.util.HashMap;
 import java.util.Map;
 
+@Service
 public class AuthDaoImpl implements AuthDao {
 
     private static final Map<String, String> database = new HashMap<>();
@@ -14,6 +17,6 @@ public class AuthDaoImpl implements AuthDao {
 
     @Override
     public boolean login(String user, String password) {
-        return false;
+        return database.containsKey(user) && database.get(user).equals(password);
     }
 }

@@ -1,12 +1,19 @@
 package ru.glassspirit.cloud.service;
 
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
+import java.nio.file.Path;
+import java.util.List;
 
 public interface FilesService {
 
-    OutputStream getFileOutputStream(String path);
+    Path getRootPath();
 
-    InputStream getFileInputStream(String path);
+    File getFile(String path);
+
+    List<File> getFilesInDirectory(Path path);
+
+    OutputStream getFileOutputStream(Path path) throws IOException;
+
+    InputStream getFileInputStream(Path path) throws FileNotFoundException;
 
 }
