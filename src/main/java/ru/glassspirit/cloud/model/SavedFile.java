@@ -38,7 +38,7 @@ public class SavedFile {
         while (spliterator.tryAdvance(element -> {
             if (element.isDirectory()) deleteDirectory(element);
             else element.delete();
-        }));
+        })) ;
         return file.delete();
     }
 

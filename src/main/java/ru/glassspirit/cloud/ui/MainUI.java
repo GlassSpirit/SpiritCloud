@@ -1,5 +1,6 @@
 package ru.glassspirit.cloud.ui;
 
+import com.vaadin.annotations.PreserveOnRefresh;
 import com.vaadin.annotations.Title;
 import com.vaadin.icons.VaadinIcons;
 import com.vaadin.server.ExternalResource;
@@ -19,6 +20,7 @@ import java.io.OutputStream;
 import java.nio.file.Path;
 
 @SpringUI
+@PreserveOnRefresh
 @Title("SpiritCloud")
 public class MainUI extends UI {
 
@@ -50,12 +52,13 @@ public class MainUI extends UI {
 
     //Нижний тулбар
     private Upload uploadFile;
-    private Button btnDownloadFile;
-    private FileDownloader btnDownloadFileDownloader;
 
     //Авторизация
     private Panel pnlAuthentification;
     private LoginForm loginForm;
+
+    //Заготовка контекстного меню файла
+    private WindowFileContext windowFileContext;
 
     @Override
     protected void init(VaadinRequest request) {
@@ -80,10 +83,8 @@ public class MainUI extends UI {
             if (!currentDir.equals(rootDir)) {
                 currentDir = (currentDir.getParent() != null ? currentDir.getParent() : rootDir);
                 updateFileGrid();
-                itemAscendDir.setEnabled(!currentDir.equals(rootDir));
             }
         });
-        itemAscendDir.setEnabled(false);
 
         itemDeleteFile = toolbarTop.addItem("Удалить", VaadinIcons.TRASH, menuItem -> {
             ConfirmDialog.show(this, "Удалить файлы?", "", "Удалить", "Отмена", dialog -> {
@@ -109,15 +110,10 @@ public class MainUI extends UI {
         gridFiles.setSizeFull();
         gridFiles.setSelectionMode(Grid.SelectionMode.MULTI);
         gridFiles.addSelectionListener(event -> {
-            itemDeleteFile.setEnabled(event.getAllSelectedItems().size() > 0);
-            btnDownloadFile.setEnabled(event.getAllSelectedItems().size() == 1
-                    && !event.getAllSelectedItems().iterator().next().getFile().isDirectory());
-            event.getFirstSelectedItem().ifPresent(firstSelected -> {
-                String url = createDownloadURL(firstSelected);
-                btnDownloadFileDownloader.setFileDownloadResource(new ExternalResource(url));
-            });
+            updateButtonStates();
         });
         gridFiles.addItemClickListener(event -> {
+            if (windowFileContext.isAttached()) windowFileContext.close();
             if (event.getMouseEventDetails().isDoubleClick() || event.getMouseEventDetails().isShiftKey()) {
                 if (event.getItem().getFile().isDirectory() && !event.getMouseEventDetails().isShiftKey()) {
                     currentDir = currentDir.resolve(event.getItem().getFileName());
@@ -134,9 +130,21 @@ public class MainUI extends UI {
                 }
             }
         });
+        windowFileContext = new WindowFileContext();
+        gridFiles.addContextClickListener(event -> {
+            Grid.GridContextClickEvent<SavedFile> gridEvent = (Grid.GridContextClickEvent<SavedFile>) event;
+            if (windowFileContext.isAttached()) windowFileContext.close();
+            if (gridEvent.getItem() == null) return;
+            windowFileContext.setPosition(gridEvent.getClientX(), event.getClientY());
+            windowFileContext.setFile(gridEvent.getItem());
+            addWindow(windowFileContext);
+            windowFileContext.focus();
+            gridFiles.deselectAll();
+            gridFiles.select(gridEvent.getItem());
+        });
+
         gridFiles.addColumn(SavedFile::getFileName).setCaption("Имя файла");
         gridFiles.addColumn(SavedFile::getFileSize).setCaption("Размер");
-        updateFileGrid();
 
         //Нижний тулбар
         HorizontalLayout layoutActionsBottom = new HorizontalLayout();
@@ -166,12 +174,7 @@ public class MainUI extends UI {
             error.show(getPage());
         });
 
-        btnDownloadFile = new Button("Скачать");
-        btnDownloadFile.setEnabled(false);
-        btnDownloadFileDownloader = new FileDownloader(new ExternalResource(""));
-        btnDownloadFileDownloader.extend(btnDownloadFile);
-
-        layoutActionsBottom.addComponents(uploadFile, btnDownloadFile);
+        layoutActionsBottom.addComponents(uploadFile);
 
         layoutMain.addComponents(layoutActionsTop, gridFiles, layoutActionsBottom);
         pnlMain.setContent(layoutMain);
@@ -207,13 +210,20 @@ public class MainUI extends UI {
         //Пока без авторизации
         layoutSource.addComponents(pnlMain/*, pnlAuthentification*/);
         this.setContent(layoutSource);
+        updateFileGrid();
     }
 
     //Обновляем файлы в сетке и строку текущего пути.
     private void updateFileGrid() {
         gridFiles.setItems(
                 SavedFile.fromFileList(filesService.getFilesInDirectory(filesService.getRootPath().resolve(currentDir))));
+        updateButtonStates();
+    }
+
+    private void updateButtonStates() {
         labelCurrentDir.setValue("." + File.separator + currentDir.toString());
+        itemDeleteFile.setEnabled(gridFiles.getSelectedItems().size() > 0);
+        itemAscendDir.setEnabled(!currentDir.equals(rootDir));
     }
 
     private String createDownloadURL(SavedFile file) {
@@ -225,6 +235,70 @@ public class MainUI extends UI {
         //Указываем путь к файлу относительно rootPath
         builder.append(filesService.getRootPath().relativize(file.getFile().toPath()).toString().replace(File.separator, "/"));
         return builder.toString();
+    }
+
+    private class WindowFileContext extends Window {
+        private SavedFile file;
+        private Button btnOpenDirectory;
+        private Button btnDownload;
+        private FileDownloader btnDownloadDownloader;
+        private Button btnDelete;
+        private Button btnRename;
+
+        public WindowFileContext() {
+            this.setClosable(false);
+            this.setResizable(false);
+            this.setDraggable(false);
+            VerticalLayout layout = new VerticalLayout();
+            layout.setMargin(false);
+            layout.setSpacing(false);
+            btnOpenDirectory = new NativeButton("Открыть");
+            btnOpenDirectory.setSizeFull();
+            btnOpenDirectory.addClickListener(event -> {
+                if (this.file.getFile().isDirectory()) {
+                    currentDir = currentDir.resolve(file.getFileName());
+                    updateFileGrid();
+                }
+                this.close();
+            });
+            btnDownload = new NativeButton("Скачать");
+            btnDownload.setSizeFull();
+            btnDownload.addClickListener(event -> {
+                this.close();
+            });
+            btnDownloadDownloader = new FileDownloader(new ExternalResource(""));
+            btnDownloadDownloader.extend(btnDownload);
+            btnDelete = new NativeButton("Удалить");
+            btnDelete.setSizeFull();
+            btnDelete.addClickListener(event -> {
+                String caption = file.getFile().isDirectory() ? "Удалить директорию?" : "Удалить файл?";
+                ConfirmDialog.show(getUI(), caption, "", "Удалить", "Отмена", dialog -> {
+                    if (dialog.isConfirmed()) {
+                        this.file.delete();
+                        updateFileGrid();
+                    }
+                });
+                this.close();
+            });
+            btnRename = new NativeButton("Переименовать");
+            btnRename.setSizeFull();
+            btnRename.addClickListener(event -> {
+                this.close();
+            });
+            layout.addComponents(btnOpenDirectory, btnDownload, btnDelete, btnRename);
+            this.setContent(layout);
+        }
+
+        public SavedFile getFile() {
+            return file;
+        }
+
+        public void setFile(SavedFile file) {
+            this.file = file;
+            this.btnOpenDirectory.setVisible(file.getFile().isDirectory());
+            this.btnDownload.setVisible(!file.getFile().isDirectory());
+            this.btnDownloadDownloader.setFileDownloadResource(new ExternalResource(createDownloadURL(file)));
+        }
     }
 
 }

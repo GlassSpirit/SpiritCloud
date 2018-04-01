@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class SpiritCloudApplication {
-	public static void main(String[] args) {
-		SpringApplication.run(SpiritCloudApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(SpiritCloudApplication.class, args);
+    }
 }
