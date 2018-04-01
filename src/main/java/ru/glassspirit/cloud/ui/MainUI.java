@@ -1,13 +1,14 @@
 package ru.glassspirit.cloud.ui;
 
 import com.vaadin.annotations.Title;
-import com.vaadin.server.BrowserWindowOpener;
+import com.vaadin.icons.VaadinIcons;
 import com.vaadin.server.ExternalResource;
 import com.vaadin.server.FileDownloader;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.spring.annotation.SpringUI;
 import com.vaadin.ui.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.vaadin.dialogs.ConfirmDialog;
 import ru.glassspirit.cloud.model.SavedFile;
 import ru.glassspirit.cloud.service.AuthService;
 import ru.glassspirit.cloud.service.FilesService;
@@ -72,22 +73,28 @@ public class MainUI extends UI {
         toolbarTop = new MenuBar();
         toolbarTop.setStyleName("small");
 
-        itemAscendDir = toolbarTop.addItem("Выше", menuItem -> {
+        itemAscendDir = toolbarTop.addItem("Вверх", VaadinIcons.ARROW_UP, menuItem -> {
             if (!currentDir.equals(filesService.getRootPath())) {
                 currentDir = currentDir.getParent();
                 updateFileGrid();
+                itemAscendDir.setEnabled(!currentDir.equals(filesService.getRootPath()));
             }
         });
+        itemAscendDir.setEnabled(false);
 
-        itemDeleteFile = toolbarTop.addItem("Удалить", menuItem -> {
-            for (SavedFile file : gridFiles.getSelectedItems()) {
-                file.delete();
-            }
-            updateFileGrid();
+        itemDeleteFile = toolbarTop.addItem("Удалить", VaadinIcons.TRASH, menuItem -> {
+            ConfirmDialog.show(this, "Удалить файлы?", "", "Удалить", "Отмена", dialog -> {
+                if (dialog.isConfirmed()) {
+                    for (SavedFile file : gridFiles.getSelectedItems()) {
+                        file.delete();
+                    }
+                    updateFileGrid();
+                }
+            });
         });
         itemDeleteFile.setEnabled(false);
 
-        itemUpdateGrid = toolbarTop.addItem("Обновить", menuItem -> {
+        itemUpdateGrid = toolbarTop.addItem("Обновить", VaadinIcons.REFRESH, menuItem -> {
             updateFileGrid();
         });
         labelCurrentDir = new Label();
@@ -103,16 +110,15 @@ public class MainUI extends UI {
             btnDownloadFile.setEnabled(event.getAllSelectedItems().size() == 1
                     && !event.getAllSelectedItems().iterator().next().getFile().isDirectory());
             event.getFirstSelectedItem().ifPresent(firstSelected -> {
-                String url = getPage().getLocation().resolve("/files/"
-                        + filesService.getRootPath().relativize(currentDir).toString().replace("\\", "/").replace(" ", "%20")
-                        + "/" + firstSelected.getFileName().replace(" ", "%20")).toString();
+                String url = createDownloadURL(firstSelected);
                 btnDownloadFileDownloader.setFileDownloadResource(new ExternalResource(url));
             });
         });
         gridFiles.addItemClickListener(event -> {
             if (event.getMouseEventDetails().isDoubleClick() || event.getMouseEventDetails().isShiftKey()) {
-                if (event.getItem().getFile().isDirectory()) {
+                if (event.getItem().getFile().isDirectory() && !event.getMouseEventDetails().isShiftKey()) {
                     currentDir = currentDir.resolve(event.getItem().getFileName());
+                    itemAscendDir.setEnabled(!currentDir.equals(filesService.getRootPath()));
                     updateFileGrid();
                     return;
                 }
@@ -168,7 +174,7 @@ public class MainUI extends UI {
         pnlMain.setContent(layoutMain);
 
         //Панель авторизации
-        pnlAuthentification = new Panel("Авторизация");
+        /*pnlAuthentification = new Panel("Авторизация");
         HorizontalLayout layoutAuthentification = new HorizontalLayout();
 
         loginForm = new LoginForm();
@@ -193,16 +199,28 @@ public class MainUI extends UI {
         });
 
         layoutAuthentification.addComponents(loginForm, labelLoginInfo);
-        pnlAuthentification.setContent(layoutAuthentification);
+        pnlAuthentification.setContent(layoutAuthentification);*/
 
         //Пока без авторизации
         layoutSource.addComponents(pnlMain/*, pnlAuthentification*/);
         this.setContent(layoutSource);
     }
 
-    public void updateFileGrid() {
+    //Обновляем файлы в сетке и строку текущего пути.
+    private void updateFileGrid() {
         gridFiles.setItems(SavedFile.fromFileList(filesService.getFilesInDirectory(currentDir)));
-        labelCurrentDir.setValue("root" + File.separator + filesService.getRootPath().relativize(currentDir).normalize().toString());
+        labelCurrentDir.setValue("." + File.separator + filesService.getRootPath().relativize(currentDir).toString());
+    }
+
+    private String createDownloadURL(SavedFile file) {
+        StringBuilder builder = new StringBuilder();
+        //Добавляем исходный адрес
+        builder.append(getPage().getLocation().toString());
+        //Запрос на скачивание
+        builder.append("/download?file_path=");
+        //Указываем путь к файлу относительно rootPath
+        builder.append(filesService.getRootPath().relativize(file.getFile().toPath()).toString().replace(File.separator, "/"));
+        return builder.toString();
     }
 
 }

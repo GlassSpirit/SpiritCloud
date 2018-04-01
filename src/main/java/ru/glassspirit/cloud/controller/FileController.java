@@ -8,6 +8,8 @@ import ru.glassspirit.cloud.service.FilesService;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.File;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 
 @RestController
 public class FileController {
@@ -16,16 +18,23 @@ public class FileController {
     FilesService filesService;
 
     @RequestMapping(
-            value = "/files/**/{file_name}",
+            value = "/download",
             method = RequestMethod.GET,
             produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     @ResponseBody
-    public FileSystemResource getFile(@PathVariable("file_name") String fileName, HttpServletResponse response) {
-        File file = filesService.getFile(fileName);
+    public FileSystemResource getFile(@RequestParam("file_path") String filePath, HttpServletResponse response) {
+        File file = filesService.getFile(filePath);
         if (file.exists()) {
-            response.setHeader("Content-Disposition", "attachment; filename=" + fileName);
+            try {
+                response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''"
+                        + URLEncoder.encode(file.getName(), "UTF-8").replace("+", " "));
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
             return new FileSystemResource(file);
-        } else return null;
+        } else {
+            return null;
+        }
     }
 
 }
