@@ -110,6 +110,9 @@ public class MainUI extends UI {
         gridFiles.setSizeFull();
         gridFiles.setSelectionMode(Grid.SelectionMode.MULTI);
         gridFiles.addSelectionListener(event -> {
+            if (event.getAllSelectedItems().size() > 1) {
+                if (windowFileContext.isAttached()) windowFileContext.close();
+            }
             updateButtonStates();
         });
         gridFiles.addItemClickListener(event -> {
@@ -217,6 +220,7 @@ public class MainUI extends UI {
     private void updateFileGrid() {
         gridFiles.setItems(
                 SavedFile.fromFileList(filesService.getFilesInDirectory(filesService.getRootPath().resolve(currentDir))));
+        if (windowFileContext.isAttached()) windowFileContext.close();
         updateButtonStates();
     }
 
@@ -264,7 +268,7 @@ public class MainUI extends UI {
             btnDownload = new NativeButton("Скачать");
             btnDownload.setSizeFull();
             btnDownload.addClickListener(event -> {
-                this.close();
+                //this.close();
             });
             btnDownloadDownloader = new FileDownloader(new ExternalResource(""));
             btnDownloadDownloader.extend(btnDownload);
