@@ -1,6 +1,8 @@
 package ru.glassspirit.cloud.ui;
 
 import com.vaadin.annotations.Title;
+import com.vaadin.server.BrowserWindowOpener;
+import com.vaadin.server.FileDownloader;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.spring.annotation.SpringUI;
 import com.vaadin.ui.*;
@@ -29,20 +31,22 @@ public class MainUI extends UI {
     //Текущая папка с файлами
     private Path currentDir;
 
-    //Верхняя панель действий
-    private Panel pnlActionsTop;
-    private MenuBar menuBar;
+    //Основная панель
+    private Panel pnlMain;
+
+    //Верхний тулбар
+    private MenuBar toolbarTop;
+    private MenuBar.MenuItem itemAscendDir;
+    private MenuBar.MenuItem itemDeleteFile;
+    private MenuBar.MenuItem itemDownloadFile;
+    private MenuBar.MenuItem itemUpdateGrid;
     private Label labelCurrentDir;
 
     //Сетка файлов
     private Grid<SavedFile> gridFiles;
 
-    //Нижняя панель действий
-    private Panel pnlActionsBottom;
+    //Нижний тулбар
     private Upload uploadFile;
-    private Button btnDelete;
-    private Button btnDownload;
-    private Button btnUpdate;
 
     //Авторизация
     private Panel pnlAuthentification;
@@ -51,34 +55,65 @@ public class MainUI extends UI {
     @Override
     protected void init(VaadinRequest request) {
         currentDir = filesService.getRootPath();
+
+        //Основная страница
         VerticalLayout layoutSource = new VerticalLayout();
-        layoutSource.setSpacing(false);
 
-        pnlActionsTop = new Panel();
+        //Основная панель
+        pnlMain = new Panel();
+        VerticalLayout layoutMain = new VerticalLayout();
+        layoutMain.setSpacing(false);
+
+        //Верхний тулбар
         HorizontalLayout layoutActionsTop = new HorizontalLayout();
-        layoutActionsTop.setSpacing(false);
 
-        menuBar = new MenuBar();
-        MenuBar.MenuItem fileItem = menuBar.addItem("Выше", menuItem -> {
+        toolbarTop = new MenuBar();
+        toolbarTop.setStyleName("small");
+
+        itemAscendDir = toolbarTop.addItem("Выше", menuItem -> {
             if (!currentDir.equals(filesService.getRootPath())) {
                 currentDir = currentDir.getParent();
                 updateFileGrid();
             }
         });
+
+        itemDeleteFile = toolbarTop.addItem("Удалить", menuItem -> {
+            for (SavedFile file : gridFiles.getSelectedItems()) {
+                file.delete();
+            }
+            updateFileGrid();
+        });
+        itemDeleteFile.setEnabled(false);
+
+        //Грязный хак, чтобы привязать BrowserWindowOpener к MenuItem
+        Button btnDownloadFile = new Button();
+        //btnDownloadFile.setVisible(false);
+        BrowserWindowOpener opener = new BrowserWindowOpener("");
+        opener.extend(btnDownloadFile);
+        itemDownloadFile = toolbarTop.addItem("Скачать", menuItem -> {
+            opener.setUrl(getPage().getLocation().resolve("/files/" + gridFiles.getSelectedItems().iterator().next().getFileName().replace(" ", "%20")).toString());
+            btnDownloadFile.click();
+        });
+        itemDownloadFile.setEnabled(false);
+
+        itemUpdateGrid = toolbarTop.addItem("Обновить", menuItem -> {
+            updateFileGrid();
+        });
         labelCurrentDir = new Label();
 
-        layoutActionsTop.addComponents(menuBar, labelCurrentDir);
-        pnlActionsTop.setContent(layoutActionsTop);
+        layoutActionsTop.addComponents(toolbarTop, labelCurrentDir, btnDownloadFile);
 
+        //Сетка файлов
         gridFiles = new Grid<>();
         gridFiles.setSizeFull();
         gridFiles.setSelectionMode(Grid.SelectionMode.MULTI);
         gridFiles.addSelectionListener(event -> {
-            btnDelete.setEnabled(event.getAllSelectedItems().size() > 0);
-            btnDownload.setEnabled(event.getAllSelectedItems().size() == 1);
+            itemDeleteFile.setEnabled(event.getAllSelectedItems().size() > 0);
+            itemDownloadFile.setEnabled(event.getAllSelectedItems().size() == 1
+                    && !event.getAllSelectedItems().iterator().next().getFile().isDirectory());
         });
         gridFiles.addItemClickListener(event -> {
-            if (event.getMouseEventDetails().isDoubleClick()) {
+            if (event.getMouseEventDetails().isDoubleClick() || event.getMouseEventDetails().isShiftKey()) {
                 if (event.getItem().getFile().isDirectory()) {
                     currentDir = currentDir.resolve(event.getItem().getFileName());
                     updateFileGrid();
@@ -97,11 +132,8 @@ public class MainUI extends UI {
         gridFiles.addColumn(SavedFile::getFileSize).setCaption("Размер");
         updateFileGrid();
 
-        //Панель действий
-        pnlActionsBottom = new Panel();
+        //Нижний тулбар
         HorizontalLayout layoutActionsBottom = new HorizontalLayout();
-        layoutActionsBottom.setMargin(true);
-        layoutActionsBottom.setSpacing(true);
 
         uploadFile = new Upload();
         uploadFile.setButtonCaption("Загрузить");
@@ -127,26 +159,11 @@ public class MainUI extends UI {
             error.setDelayMsec(1000);
             error.show(getPage());
         });
-        btnDelete = new Button("Удалить");
-        btnDelete.setEnabled(false);
-        btnDelete.addClickListener(event -> {
-           for (SavedFile file : gridFiles.getSelectedItems()) {
-               file.getFile().delete();
-           }
-           updateFileGrid();
-        });
-        btnDownload = new Button("Скачать");
-        btnDownload.setEnabled(false);
-        btnDownload.addClickListener(event -> {
-            getPage().open(getPage().getLocation().resolve("/files/" + gridFiles.getSelectedItems().iterator().next().getFileName()).toString(), "Download");
-        });
-        btnUpdate = new Button("Обновить");
-        btnUpdate.addClickListener(event -> {
-            updateFileGrid();
-        });
 
-        layoutActionsBottom.addComponents(uploadFile, btnDelete, btnDownload, btnUpdate);
-        pnlActionsBottom.setContent(layoutActionsBottom);
+        layoutActionsBottom.addComponents(uploadFile);
+
+        layoutMain.addComponents(layoutActionsTop, gridFiles, layoutActionsBottom);
+        pnlMain.setContent(layoutMain);
 
         //Панель авторизации
         pnlAuthentification = new Panel("Авторизация");
@@ -177,7 +194,7 @@ public class MainUI extends UI {
         pnlAuthentification.setContent(layoutAuthentification);
 
         //Пока без авторизации
-        layoutSource.addComponents(pnlActionsTop, gridFiles, pnlActionsBottom/*, pnlAuthentification*/);
+        layoutSource.addComponents(pnlMain/*, pnlAuthentification*/);
         this.setContent(layoutSource);
     }
 

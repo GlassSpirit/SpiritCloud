@@ -6,6 +6,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import ru.glassspirit.cloud.service.FilesService;
 
+import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 
 @RestController
@@ -19,9 +20,12 @@ public class FileController {
             method = RequestMethod.GET,
             produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     @ResponseBody
-    public FileSystemResource getFile(@PathVariable("file_name") String fileName) {
+    public FileSystemResource getFile(@PathVariable("file_name") String fileName, HttpServletResponse response) {
         File file = filesService.getFile(fileName);
-        return file.exists() ? new FileSystemResource(file) : null;
+        if (file.exists()) {
+            response.setHeader("Content-Disposition", "attachment; filename=" + fileName);
+            return new FileSystemResource(file);
+        } else return null;
     }
 
 }

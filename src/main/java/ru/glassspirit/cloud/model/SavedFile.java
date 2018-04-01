@@ -2,7 +2,9 @@ package ru.glassspirit.cloud.model;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Spliterator;
 
 public class SavedFile {
 
@@ -26,6 +28,17 @@ public class SavedFile {
     }
 
     public boolean delete() {
+        if (file.isDirectory())
+            return deleteDirectory(file);
+        return file.delete();
+    }
+
+    private boolean deleteDirectory(File file) {
+        Spliterator<File> spliterator = Arrays.asList(file.listFiles()).spliterator();
+        while (spliterator.tryAdvance(element -> {
+            if (element.isDirectory()) deleteDirectory(element);
+            else element.delete();
+        }));
         return file.delete();
     }
 
