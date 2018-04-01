@@ -2,6 +2,7 @@ package ru.glassspirit.cloud.ui;
 
 import com.vaadin.annotations.Title;
 import com.vaadin.server.BrowserWindowOpener;
+import com.vaadin.server.ExternalResource;
 import com.vaadin.server.FileDownloader;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.spring.annotation.SpringUI;
@@ -38,7 +39,6 @@ public class MainUI extends UI {
     private MenuBar toolbarTop;
     private MenuBar.MenuItem itemAscendDir;
     private MenuBar.MenuItem itemDeleteFile;
-    private MenuBar.MenuItem itemDownloadFile;
     private MenuBar.MenuItem itemUpdateGrid;
     private Label labelCurrentDir;
 
@@ -47,6 +47,8 @@ public class MainUI extends UI {
 
     //Нижний тулбар
     private Upload uploadFile;
+    private Button btnDownloadFile;
+    private FileDownloader btnDownloadFileDownloader;
 
     //Авторизация
     private Panel pnlAuthentification;
@@ -85,23 +87,12 @@ public class MainUI extends UI {
         });
         itemDeleteFile.setEnabled(false);
 
-        //Грязный хак, чтобы привязать BrowserWindowOpener к MenuItem
-        Button btnDownloadFile = new Button();
-        //btnDownloadFile.setVisible(false);
-        BrowserWindowOpener opener = new BrowserWindowOpener("");
-        opener.extend(btnDownloadFile);
-        itemDownloadFile = toolbarTop.addItem("Скачать", menuItem -> {
-            opener.setUrl(getPage().getLocation().resolve("/files/" + gridFiles.getSelectedItems().iterator().next().getFileName().replace(" ", "%20")).toString());
-            btnDownloadFile.click();
-        });
-        itemDownloadFile.setEnabled(false);
-
         itemUpdateGrid = toolbarTop.addItem("Обновить", menuItem -> {
             updateFileGrid();
         });
         labelCurrentDir = new Label();
 
-        layoutActionsTop.addComponents(toolbarTop, labelCurrentDir, btnDownloadFile);
+        layoutActionsTop.addComponents(toolbarTop, labelCurrentDir);
 
         //Сетка файлов
         gridFiles = new Grid<>();
@@ -109,8 +100,14 @@ public class MainUI extends UI {
         gridFiles.setSelectionMode(Grid.SelectionMode.MULTI);
         gridFiles.addSelectionListener(event -> {
             itemDeleteFile.setEnabled(event.getAllSelectedItems().size() > 0);
-            itemDownloadFile.setEnabled(event.getAllSelectedItems().size() == 1
+            btnDownloadFile.setEnabled(event.getAllSelectedItems().size() == 1
                     && !event.getAllSelectedItems().iterator().next().getFile().isDirectory());
+            event.getFirstSelectedItem().ifPresent(firstSelected -> {
+                String url = getPage().getLocation().resolve("/files/"
+                        + filesService.getRootPath().relativize(currentDir).toString().replace("\\", "/").replace(" ", "%20")
+                        + "/" + firstSelected.getFileName().replace(" ", "%20")).toString();
+                btnDownloadFileDownloader.setFileDownloadResource(new ExternalResource(url));
+            });
         });
         gridFiles.addItemClickListener(event -> {
             if (event.getMouseEventDetails().isDoubleClick() || event.getMouseEventDetails().isShiftKey()) {
@@ -160,7 +157,12 @@ public class MainUI extends UI {
             error.show(getPage());
         });
 
-        layoutActionsBottom.addComponents(uploadFile);
+        btnDownloadFile = new Button("Скачать");
+        btnDownloadFile.setEnabled(false);
+        btnDownloadFileDownloader = new FileDownloader(new ExternalResource(""));
+        btnDownloadFileDownloader.extend(btnDownloadFile);
+
+        layoutActionsBottom.addComponents(uploadFile, btnDownloadFile);
 
         layoutMain.addComponents(layoutActionsTop, gridFiles, layoutActionsBottom);
         pnlMain.setContent(layoutMain);
