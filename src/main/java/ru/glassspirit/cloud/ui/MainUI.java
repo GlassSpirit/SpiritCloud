@@ -32,6 +32,8 @@ public class MainUI extends UI {
 
     //Текущая папка с файлами
     private Path currentDir;
+    //Конечная папка для приложения
+    private Path rootDir;
 
     //Основная панель
     private Panel pnlMain;
@@ -57,7 +59,8 @@ public class MainUI extends UI {
 
     @Override
     protected void init(VaadinRequest request) {
-        currentDir = filesService.getRootPath();
+        rootDir = filesService.getRootPath().relativize(filesService.getRootPath());
+        currentDir = rootDir;
 
         //Основная страница
         VerticalLayout layoutSource = new VerticalLayout();
@@ -74,10 +77,10 @@ public class MainUI extends UI {
         toolbarTop.setStyleName("small");
 
         itemAscendDir = toolbarTop.addItem("Вверх", VaadinIcons.ARROW_UP, menuItem -> {
-            if (!currentDir.equals(filesService.getRootPath())) {
-                currentDir = currentDir.getParent();
+            if (!currentDir.equals(rootDir)) {
+                currentDir = (currentDir.getParent() != null ? currentDir.getParent() : rootDir);
                 updateFileGrid();
-                itemAscendDir.setEnabled(!currentDir.equals(filesService.getRootPath()));
+                itemAscendDir.setEnabled(!currentDir.equals(rootDir));
             }
         });
         itemAscendDir.setEnabled(false);
@@ -118,7 +121,7 @@ public class MainUI extends UI {
             if (event.getMouseEventDetails().isDoubleClick() || event.getMouseEventDetails().isShiftKey()) {
                 if (event.getItem().getFile().isDirectory() && !event.getMouseEventDetails().isShiftKey()) {
                     currentDir = currentDir.resolve(event.getItem().getFileName());
-                    itemAscendDir.setEnabled(!currentDir.equals(filesService.getRootPath()));
+                    itemAscendDir.setEnabled(!currentDir.equals(rootDir));
                     updateFileGrid();
                     return;
                 }
@@ -144,7 +147,7 @@ public class MainUI extends UI {
             @Override
             public OutputStream receiveUpload(String fileName, String mimeType) {
                 try {
-                    return filesService.getFileOutputStream(currentDir.resolve(fileName));
+                    return filesService.getFileOutputStream(filesService.getRootPath().resolve(currentDir).resolve(fileName));
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -208,8 +211,9 @@ public class MainUI extends UI {
 
     //Обновляем файлы в сетке и строку текущего пути.
     private void updateFileGrid() {
-        gridFiles.setItems(SavedFile.fromFileList(filesService.getFilesInDirectory(currentDir)));
-        labelCurrentDir.setValue("." + File.separator + filesService.getRootPath().relativize(currentDir).toString());
+        gridFiles.setItems(
+                SavedFile.fromFileList(filesService.getFilesInDirectory(filesService.getRootPath().resolve(currentDir))));
+        labelCurrentDir.setValue("." + File.separator + currentDir.toString());
     }
 
     private String createDownloadURL(SavedFile file) {
