@@ -10,10 +10,10 @@ public interface FilesService {
 
     File getFile(String path);
 
-    List<File> getFilesInDirectory(Path path);
+    List<File> getFilesInDirectory(String path);
 
-    OutputStream getFileOutputStream(Path path) throws IOException;
+    OutputStream getFileOutputStream(String path) throws IOException;
 
-    InputStream getFileInputStream(Path path) throws FileNotFoundException;
+    InputStream getFileInputStream(String path) throws FileNotFoundException;
 
 }

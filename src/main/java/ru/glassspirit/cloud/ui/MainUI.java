@@ -18,6 +18,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 @SpringUI
 @PreserveOnRefresh
@@ -62,7 +63,7 @@ public class MainUI extends UI {
 
     @Override
     protected void init(VaadinRequest request) {
-        rootDir = filesService.getRootPath().relativize(filesService.getRootPath());
+        rootDir = Paths.get("");
         currentDir = rootDir;
 
         //Основная страница
@@ -158,7 +159,7 @@ public class MainUI extends UI {
             @Override
             public OutputStream receiveUpload(String fileName, String mimeType) {
                 try {
-                    return filesService.getFileOutputStream(filesService.getRootPath().resolve(currentDir).resolve(fileName));
+                    return filesService.getFileOutputStream(currentDir.resolve(fileName).toString());
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -218,8 +219,7 @@ public class MainUI extends UI {
 
     //Обновляем файлы в сетке и строку текущего пути.
     private void updateFileGrid() {
-        gridFiles.setItems(
-                SavedFile.fromFileList(filesService.getFilesInDirectory(filesService.getRootPath().resolve(currentDir))));
+        gridFiles.setItems(SavedFile.fromFileList(filesService.getFilesInDirectory(currentDir.toString())));
         if (windowFileContext.isAttached()) windowFileContext.close();
         updateButtonStates();
     }
