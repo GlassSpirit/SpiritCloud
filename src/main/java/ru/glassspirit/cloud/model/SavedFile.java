@@ -14,6 +14,12 @@ public class SavedFile {
         this.file = file;
     }
 
+    public static List<SavedFile> fromFileList(List<File> list) {
+        List<SavedFile> fileList = new ArrayList<>();
+        for (File file : list) fileList.add(new SavedFile(file));
+        return fileList;
+    }
+
     public File getFile() {
         return file;
     }
@@ -40,11 +46,5 @@ public class SavedFile {
             else element.delete();
         })) ;
         return file.delete();
-    }
-
-    public static List<SavedFile> fromFileList(List<File> list) {
-        List<SavedFile> fileList = new ArrayList<>();
-        for (File file : list) fileList.add(new SavedFile(file));
-        return fileList;
     }
 }

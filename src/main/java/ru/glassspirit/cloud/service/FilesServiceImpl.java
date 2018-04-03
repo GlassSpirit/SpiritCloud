@@ -13,24 +13,24 @@ import java.util.List;
 @Service
 public class FilesServiceImpl implements FilesService {
 
-    @Value("${filePath}")
-    private String filePathValue;
+    @Value("${rootPath}")
+    private String rootPathValue;
 
+    /**
+     * Получает корневую папку для работы приложения, указанную в настройках
+     */
     @Override
     public Path getRootPath() {
         try {
-            return Paths.get(filePathValue).toRealPath();
+            return Paths.get(rootPathValue).toRealPath();
         } catch (IOException e) {
-            return Paths.get(filePathValue);
+            return Paths.get(rootPathValue);
         }
     }
 
     /**
      * Ищет и отдает файл относительно корневой папки приложения.
      * Если ссылка указывает на файл выше корневого пути, отдает коневую папку (для безопасности).
-     *
-     * @param path Путь к файлу относительно корневого пути
-     * @return Указанный файл (может не сущестовать).
      */
     @Override
     public File getFile(String path) {
@@ -40,16 +40,26 @@ public class FilesServiceImpl implements FilesService {
         return getRootPath().resolve(path).toFile();
     }
 
+    /**
+     * Получает {@link OutputStream} для указанного в пути файла
+     */
     @Override
     public OutputStream getFileOutputStream(String path) throws IOException {
         return new FileOutputStream(getFile(path));
     }
 
+    /**
+     * Получает {@link InputStream} для указанного в пути файла
+     */
     @Override
     public InputStream getFileInputStream(String path) throws FileNotFoundException {
         return new FileInputStream(getFile(path));
     }
 
+    /**
+     * Получает список файлов в указанной по пути директории.
+     * Если указана не директория, возвращает пустой список.
+     */
     @Override
     public List<File> getFilesInDirectory(String path) {
         File directory = getFile(path);
