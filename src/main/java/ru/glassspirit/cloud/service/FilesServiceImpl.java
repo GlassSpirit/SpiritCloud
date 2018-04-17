@@ -1,7 +1,11 @@
 package ru.glassspirit.cloud.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import ru.glassspirit.cloud.dao.FilesDao;
+import ru.glassspirit.cloud.model.SavedFile;
 
 import java.io.*;
 import java.nio.file.Path;
@@ -13,35 +17,24 @@ import java.util.List;
 @Service
 public class FilesServiceImpl implements FilesService {
 
-    @Value("${rootPath}")
-    private String rootPathValue;
+    @Autowired
+    FilesDao filesDao;
 
     /**
-     * Получает корневую папку для работы приложения, указанную в настройках
-     */
-    @Override
-    public Path getRootPath() {
-        try {
-            return Paths.get(rootPathValue).toRealPath();
-        } catch (IOException e) {
-            return Paths.get(rootPathValue);
-        }
-    }
-
-    /**
-     * Ищет и отдает файл относительно корневой папки приложения.
-     * Если ссылка указывает на файл выше корневого пути, отдает коневую папку (для безопасности).
+     * Ищет и отдает файл относительно корневой папки пользователя.
+     * Если ссылка указывает на файл выше корневой папки, отдает коневую папку пользователя (для безопасности).
      */
     @Override
     public File getFile(String path) {
-        Path realPath = getRootPath().resolve(path).normalize();
-        if (!realPath.startsWith(getRootPath()))
-            return getRootPath().toFile();
-        return getRootPath().resolve(path).toFile();
+        Path realPath = getUserDirectory().resolve(path).normalize();
+        if (!realPath.startsWith(getUserDirectory())) {
+            return getUserDirectory().toFile();
+        }
+        return filesDao.getFile(realPath.toString());
     }
 
     /**
-     * Получает {@link OutputStream} для указанного в пути файла
+     * Получает {@link OutputStream} для указанного в пути файла относительно корневой папки пользователя.
      */
     @Override
     public OutputStream getFileOutputStream(String path) throws IOException {
@@ -49,7 +42,7 @@ public class FilesServiceImpl implements FilesService {
     }
 
     /**
-     * Получает {@link InputStream} для указанного в пути файла
+     * Получает {@link InputStream} для указанного в пути файла относительно корневой папки пользователя.
      */
     @Override
     public InputStream getFileInputStream(String path) throws FileNotFoundException {
@@ -57,7 +50,7 @@ public class FilesServiceImpl implements FilesService {
     }
 
     /**
-     * Получает список файлов в указанной по пути директории.
+     * Получает список файлов в указанной по пути директории относительно корневой папки пользователя.
      * Если указана не директория, возвращает пустой список.
      */
     @Override
@@ -66,6 +59,25 @@ public class FilesServiceImpl implements FilesService {
         if (directory.exists() && directory.isDirectory())
             return Arrays.asList(directory.listFiles());
         return new ArrayList<>();
+    }
+
+    /**
+     * Генерация частичной ссылки на загрузку файла.
+     */
+    public String createDownloadURL(File file) {
+        String url = "/download?file_path="
+                + filesDao.getRootPath().relativize(file.toPath()).toString().replace(File.separator, "/");
+        return url;
+    }
+
+    /**
+     * Получает корневую папку текущего пользователя.
+     */
+    private Path getUserDirectory() {
+        Path userPath = filesDao.getRootPath().resolve(SecurityContextHolder.getContext().getAuthentication().getName());
+        if (!userPath.toFile().exists())
+            userPath.toFile().mkdirs();
+        return userPath;
     }
 
 }

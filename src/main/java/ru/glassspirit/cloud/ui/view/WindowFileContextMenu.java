@@ -1,4 +1,4 @@
-package ru.glassspirit.cloud.ui;
+package ru.glassspirit.cloud.ui.view;
 
 import com.vaadin.server.ExternalResource;
 import com.vaadin.server.FileDownloader;
@@ -8,9 +8,10 @@ import com.vaadin.ui.VerticalLayout;
 import com.vaadin.ui.Window;
 import org.vaadin.dialogs.ConfirmDialog;
 import ru.glassspirit.cloud.model.SavedFile;
+import ru.glassspirit.cloud.ui.view.MainView;
 
 public class WindowFileContextMenu extends Window {
-    private MainUI mainUI;
+    private MainView mainView;
     private SavedFile file;
     private Button btnOpenDirectory;
     private Button btnDownload;
@@ -18,8 +19,8 @@ public class WindowFileContextMenu extends Window {
     private Button btnDelete;
     private Button btnRename;
 
-    public WindowFileContextMenu(MainUI ui) {
-        this.mainUI = ui;
+    public WindowFileContextMenu(MainView ui) {
+        this.mainView = ui;
         this.setClosable(false);
         this.setResizable(false);
         this.setDraggable(false);
@@ -30,8 +31,8 @@ public class WindowFileContextMenu extends Window {
         btnOpenDirectory.setSizeFull();
         btnOpenDirectory.addClickListener(event -> {
             if (this.file.getFile().isDirectory()) {
-                mainUI.currentDir = mainUI.currentDir.resolve(file.getFileName());
-                mainUI.updateFileGrid();
+                mainView.currentDir = mainView.currentDir.resolve(file.getFileName());
+                mainView.updateFileGrid();
             }
             this.close();
         });
@@ -49,7 +50,7 @@ public class WindowFileContextMenu extends Window {
             ConfirmDialog.show(getUI(), caption, "", "Удалить", "Отмена", dialog -> {
                 if (dialog.isConfirmed()) {
                     this.file.delete();
-                    mainUI.updateFileGrid();
+                    mainView.updateFileGrid();
                 }
             });
             this.close();
@@ -71,6 +72,7 @@ public class WindowFileContextMenu extends Window {
         this.file = file;
         this.btnOpenDirectory.setVisible(file.getFile().isDirectory());
         this.btnDownload.setVisible(!file.getFile().isDirectory());
-        this.btnDownloadDownloader.setFileDownloadResource(new ExternalResource(mainUI.createDownloadURL(file)));
+        this.btnDownloadDownloader.setFileDownloadResource(
+                new ExternalResource(getUI().getPage().getLocation() + mainView.filesService.createDownloadURL(file.getFile())));
     }
 }
