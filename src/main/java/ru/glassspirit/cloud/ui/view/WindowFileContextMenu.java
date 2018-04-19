@@ -2,16 +2,28 @@ package ru.glassspirit.cloud.ui.view;
 
 import com.vaadin.server.ExternalResource;
 import com.vaadin.server.FileDownloader;
-import com.vaadin.ui.Button;
-import com.vaadin.ui.NativeButton;
-import com.vaadin.ui.VerticalLayout;
-import com.vaadin.ui.Window;
+import com.vaadin.spring.annotation.UIScope;
+import com.vaadin.ui.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Component;
 import org.vaadin.dialogs.ConfirmDialog;
 import ru.glassspirit.cloud.model.SavedFile;
-import ru.glassspirit.cloud.ui.view.MainView;
+import ru.glassspirit.cloud.service.FilesService;
 
+import javax.annotation.PostConstruct;
+
+@Component
+@UIScope
 public class WindowFileContextMenu extends Window {
+
+    @Autowired
+    @Lazy
     private MainView mainView;
+
+    @Autowired
+    private FilesService filesService;
+
     private SavedFile file;
     private Button btnOpenDirectory;
     private Button btnDownload;
@@ -19,8 +31,8 @@ public class WindowFileContextMenu extends Window {
     private Button btnDelete;
     private Button btnRename;
 
-    public WindowFileContextMenu(MainView ui) {
-        this.mainView = ui;
+    @PostConstruct
+    public void init() {
         this.setClosable(false);
         this.setResizable(false);
         this.setDraggable(false);
@@ -73,6 +85,6 @@ public class WindowFileContextMenu extends Window {
         this.btnOpenDirectory.setVisible(file.getFile().isDirectory());
         this.btnDownload.setVisible(!file.getFile().isDirectory());
         this.btnDownloadDownloader.setFileDownloadResource(
-                new ExternalResource(getUI().getPage().getLocation() + mainView.filesService.createDownloadURL(file.getFile())));
+                new ExternalResource(UI.getCurrent().getPage().getLocation() + filesService.createDownloadURL(file.getFile())));
     }
 }

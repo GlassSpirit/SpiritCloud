@@ -1,15 +1,12 @@
 package ru.glassspirit.cloud.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import ru.glassspirit.cloud.dao.FilesDao;
-import ru.glassspirit.cloud.model.SavedFile;
 
 import java.io.*;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -64,9 +61,10 @@ public class FilesServiceImpl implements FilesService {
     /**
      * Генерация частичной ссылки на загрузку файла.
      */
+    @Override
     public String createDownloadURL(File file) {
         String url = "/download?file_path="
-                + filesDao.getRootPath().relativize(file.toPath()).toString().replace(File.separator, "/");
+                + getUserDirectory().relativize(file.toPath()).toString().replace(File.separator, "/");
         return url;
     }
 

@@ -1,6 +1,5 @@
 package ru.glassspirit.cloud.ui;
 
-import com.vaadin.annotations.PreserveOnRefresh;
 import com.vaadin.annotations.Title;
 import com.vaadin.navigator.PushStateNavigation;
 import com.vaadin.server.VaadinRequest;
@@ -10,7 +9,6 @@ import com.vaadin.ui.UI;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @SpringUI
-@PreserveOnRefresh
 @PushStateNavigation
 @Title("Spirit Cloud")
 public class MainUI extends UI {
